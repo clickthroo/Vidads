@@ -62,13 +62,13 @@ export async function createHeyGenVideo(spokenText: string): Promise<string> {
   return data.data.video_id as string;
 }
 
-interface HeyGenStatus {
+export interface HeyGenStatus {
   status: "pending" | "waiting" | "processing" | "completed" | "failed";
   video_url?: string;
   error?: { message: string } | null;
 }
 
-async function getHeyGenVideoStatus(videoId: string): Promise<HeyGenStatus> {
+export async function getHeyGenVideoStatus(videoId: string): Promise<HeyGenStatus> {
   const res = await fetch(
     `${HEYGEN_API_BASE}/v1/video_status.get?video_id=${videoId}`,
     { headers: { "X-Api-Key": apiKey() } }
@@ -78,28 +78,4 @@ async function getHeyGenVideoStatus(videoId: string): Promise<HeyGenStatus> {
     throw new Error(`HeyGen status check failed: ${res.statusText}`);
   }
   return data.data as HeyGenStatus;
-}
-
-export async function pollHeyGenVideo(
-  videoId: string,
-  { intervalMs = 5000, timeoutMs = 5 * 60 * 1000 } = {}
-): Promise<string> {
-  const deadline = Date.now() + timeoutMs;
-
-  while (Date.now() < deadline) {
-    const status = await getHeyGenVideoStatus(videoId);
-
-    if (status.status === "completed" && status.video_url) {
-      return status.video_url;
-    }
-    if (status.status === "failed") {
-      throw new Error(
-        `HeyGen video generation failed: ${status.error?.message ?? "unknown error"}`
-      );
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, intervalMs));
-  }
-
-  throw new Error(`HeyGen video ${videoId} did not complete within timeout`);
 }

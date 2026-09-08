@@ -7,7 +7,15 @@ export const dynamic = "force-dynamic";
 export default async function HomePage() {
   const [productsResult, scriptsResult] = await Promise.all([
     pool.query<Product>("select id, name, description from products order by name"),
-    pool.query<Script>("select * from scripts order by created_at desc"),
+    pool.query<Script>(
+      `select s.*, v.video_url
+       from scripts s
+       left join lateral (
+         select video_url from videos where videos.script_id = s.id
+         order by created_at desc limit 1
+       ) v on true
+       order by s.created_at desc`
+    ),
   ]);
 
   return (

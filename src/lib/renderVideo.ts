@@ -1,14 +1,12 @@
 import type { Script } from "./types";
-import { createHeyGenVideo, pollHeyGenVideo, toSpokenText } from "./heygen";
+import { createHeyGenVideo, toSpokenText } from "./heygen";
 
-export interface RenderVideoResult {
-  videoUrl: string;
-  provider: string;
-}
-
-export async function renderVideo(script: Script): Promise<RenderVideoResult> {
+/**
+ * Kicks off HeyGen video generation and returns its job id. Callers must
+ * poll getHeyGenVideoStatus separately — a single serverless request can't
+ * safely wait for the render to finish, since that can take minutes.
+ */
+export async function startRenderVideo(script: Script): Promise<string> {
   const spokenText = toSpokenText(script.full_script);
-  const videoId = await createHeyGenVideo(spokenText);
-  const videoUrl = await pollHeyGenVideo(videoId);
-  return { videoUrl, provider: "heygen" };
+  return createHeyGenVideo(spokenText);
 }

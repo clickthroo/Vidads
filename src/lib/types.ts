@@ -14,6 +14,8 @@ export interface Script {
   full_script: string;
   status: ScriptStatus;
   created_at: string;
+  heygen_video_id?: string | null;
+  video_url?: string | null;
 }
 
 export interface Video {

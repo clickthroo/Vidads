@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Product, Script } from "@/lib/types";
 
 export default function Dashboard({
@@ -86,6 +86,27 @@ export default function Dashboard({
     }
   }
 
+  async function pollRenderStatus(id: string) {
+    const res = await fetch(`/api/scripts/${id}/render/status`);
+    const data = await res.json();
+    if (data.script) {
+      setScripts((prev) => prev.map((s) => (s.id === id ? data.script : s)));
+    }
+    if (data.error) {
+      setError(data.error);
+    }
+    if (data.script?.status === "rendering") {
+      setTimeout(() => pollRenderStatus(id), 5000);
+    }
+  }
+
+  useEffect(() => {
+    initialScripts.forEach((s) => {
+      if (s.status === "rendering") pollRenderStatus(s.id);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function handleRender(id: string) {
     setBusyId(id);
     try {
@@ -95,8 +116,10 @@ export default function Dashboard({
         setScripts((prev) => prev.map((s) => (s.id === id ? data.script : s)));
       }
       if (!res.ok) {
-        setError(data.error ?? "Rendering failed");
+        setError(data.error ?? "Rendering failed to start");
+        return;
       }
+      pollRenderStatus(id);
     } finally {
       setBusyId(null);
     }
@@ -182,16 +205,29 @@ export default function Dashboard({
                   </button>
                 </>
               )}
-              {script.status === "approved" && (
+              {(script.status === "approved" || script.status === "failed") && (
                 <button
                   className="bg-blue-600 text-white rounded px-3 py-1.5 text-sm disabled:opacity-50"
                   disabled={busyId === script.id}
                   onClick={() => handleRender(script.id)}
                 >
-                  Render
+                  {script.status === "failed" ? "Retry render" : "Render"}
                 </button>
               )}
+              {script.status === "rendering" && (
+                <p className="text-sm text-gray-500">
+                  Rendering… this usually takes 1–3 minutes.
+                </p>
+              )}
             </div>
+
+            {script.status === "ready" && script.video_url && (
+              <video
+                controls
+                className="w-full rounded"
+                src={script.video_url}
+              />
+            )}
           </div>
         ))}
 

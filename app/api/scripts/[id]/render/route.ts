@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/lib/db";
-import { renderVideo } from "@/lib/renderVideo";
+import { startRenderVideo } from "@/lib/renderVideo";
 import type { Script } from "@/lib/types";
 
 export async function POST(
@@ -15,37 +15,32 @@ export async function POST(
   if (!script) {
     return NextResponse.json({ error: "Script not found" }, { status: 404 });
   }
-  if (script.status !== "approved") {
+  if (script.status !== "approved" && script.status !== "failed") {
     return NextResponse.json(
-      { error: "Only approved scripts can be rendered" },
+      { error: "Only approved (or previously failed) scripts can be rendered" },
       { status: 400 }
     );
   }
 
-  await pool.query("update scripts set status = 'rendering' where id = $1", [
-    script.id,
-  ]);
-
   try {
-    const { videoUrl, provider } = await renderVideo(script);
-    await pool.query(
-      "insert into videos (script_id, video_url, provider) values ($1, $2, $3)",
-      [script.id, videoUrl, provider]
-    );
+    const heygenVideoId = await startRenderVideo(script);
     const updated = await pool.query<Script>(
-      "update scripts set status = 'ready' where id = $1 returning *",
-      [script.id]
+      "update scripts set status = 'rendering', heygen_video_id = $2 where id = $1 returning *",
+      [script.id, heygenVideoId]
     );
     return NextResponse.json({ script: updated.rows[0] });
   } catch (error) {
-    console.error("Video rendering failed:", error);
+    console.error("Failed to start video rendering:", error);
     const updated = await pool.query<Script>(
       "update scripts set status = 'failed' where id = $1 returning *",
       [script.id]
     );
     return NextResponse.json(
-      { error: "Rendering not implemented yet", script: updated.rows[0] },
-      { status: 501 }
+      {
+        error: error instanceof Error ? error.message : "Rendering failed to start",
+        script: updated.rows[0],
+      },
+      { status: 502 }
     );
   }
 }
