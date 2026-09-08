@@ -49,7 +49,7 @@ export async function createHeyGenVideo(spokenText: string): Promise<string> {
           },
         },
       ],
-      dimension: { width: 1280, height: 720 },
+      dimension: { width: 1080, height: 1920 },
     }),
   });
 

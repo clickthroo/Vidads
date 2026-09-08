@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { Product } from "./types";
+import { getFormatDef, type ScriptFormat } from "./formats";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -10,32 +11,31 @@ export interface GeneratedScript {
   full_script: string;
 }
 
-const SYSTEM_PROMPT = `You are a direct-response copywriter who writes high-converting TikTok UGC ad scripts.
+function buildSystemPrompt(format: ScriptFormat): string {
+  const { promptGuidance } = getFormatDef(format);
+  return `You are a direct-response copywriter who writes high-converting TikTok UGC ad scripts.
 
 Every script MUST follow this exact proven structure, with timestamps:
-- Hook (0-3s): a scroll-stopping opening line
-- Context (3-7s): quick relatable setup for why the viewer should care
-- How it works (7-11s): a simple explanation of the product mechanic
-- Proof (11-15s): a believable, specific detail that builds trust
-- Payout proof (15-19s): a concrete result (e.g. a cash-out or reward moment)
-- CTA (19-22s): a clear, casual call to action
+${promptGuidance}
 
-Write in a casual, authentic, first-person UGC voice, not corporate ad copy.
+Write in a casual, authentic, first-person UGC voice, not corporate ad copy. TikTok rewards native, slightly unpolished energy over anything that sounds rehearsed or like marketing copy.
 
 Respond with ONLY a JSON array (no markdown fences, no commentary) of exactly 3 objects, each shaped as:
 {
-  "hook_text": "<just the hook line, 0-3s>",
+  "hook_text": "<just the hook line>",
   "full_script": "<the full script with each labeled section on its own line, e.g. 'Hook (0-3s): ...\\nContext (3-7s): ...\\n...'>"
 }`;
+}
 
 export async function generateScripts(
   product: Product,
-  angle: string
+  angle: string,
+  format: ScriptFormat
 ): Promise<GeneratedScript[]> {
   const message = await anthropic.messages.create({
     model: "claude-opus-5",
     max_tokens: 4096,
-    system: SYSTEM_PROMPT,
+    system: buildSystemPrompt(format),
     messages: [
       {
         role: "user",

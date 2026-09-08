@@ -1,3 +1,5 @@
+import type { ScriptFormat } from "./formats";
+
 export type ScriptStatus = "draft" | "approved" | "rendering" | "ready" | "failed";
 
 export interface Product {
@@ -10,6 +12,7 @@ export interface Script {
   id: string;
   product_id: string;
   angle: string;
+  format: ScriptFormat;
   hook_text: string;
   full_script: string;
   status: ScriptStatus;

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { Product, Script } from "@/lib/types";
+import { SCRIPT_FORMATS, type ScriptFormat } from "@/lib/formats";
 
 export default function Dashboard({
   products,
@@ -12,6 +13,7 @@ export default function Dashboard({
 }) {
   const [productId, setProductId] = useState(products[0]?.id ?? "");
   const [angle, setAngle] = useState("");
+  const [format, setFormat] = useState<ScriptFormat>("ugc_hook");
   const [scripts, setScripts] = useState<Script[]>(initialScripts);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +27,7 @@ export default function Dashboard({
       const res = await fetch("/api/scripts/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId, angle }),
+        body: JSON.stringify({ productId, angle, format }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to generate scripts");
@@ -155,6 +157,21 @@ export default function Dashboard({
           />
         </div>
 
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-gray-700">Format</label>
+          <select
+            className="border border-gray-300 rounded px-3 py-2"
+            value={format}
+            onChange={(e) => setFormat(e.target.value as ScriptFormat)}
+          >
+            {SCRIPT_FORMATS.map((f) => (
+              <option key={f.value} value={f.value}>
+                {f.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <button
           className="bg-black text-white rounded px-4 py-2 disabled:opacity-50"
           disabled={generating || !productId || !angle.trim()}
@@ -174,7 +191,8 @@ export default function Dashboard({
           >
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-500">
-                {script.angle} · <StatusBadge status={script.status} />
+                {script.angle} · {formatLabel(script.format)} ·{" "}
+                <StatusBadge status={script.status} />
               </span>
             </div>
 
@@ -239,6 +257,10 @@ export default function Dashboard({
       </section>
     </main>
   );
+}
+
+function formatLabel(format: ScriptFormat): string {
+  return SCRIPT_FORMATS.find((f) => f.value === format)?.label ?? format;
 }
 
 function StatusBadge({ status }: { status: Script["status"] }) {

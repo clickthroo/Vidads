@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/lib/db";
 import { generateScripts } from "@/lib/anthropic";
+import { isScriptFormat, type ScriptFormat } from "@/lib/formats";
 import type { Product, Script } from "@/lib/types";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { productId, angle } = body as { productId?: string; angle?: string };
+  const { productId, angle, format } = body as {
+    productId?: string;
+    angle?: string;
+    format?: ScriptFormat;
+  };
 
   if (!productId || !angle?.trim()) {
     return NextResponse.json(
@@ -13,6 +18,8 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
+
+  const scriptFormat: ScriptFormat = isScriptFormat(format) ? format : "ugc_hook";
 
   const productResult = await pool.query<Product>(
     "select id, name, description from products where id = $1",
@@ -25,7 +32,7 @@ export async function POST(request: NextRequest) {
 
   let generated;
   try {
-    generated = await generateScripts(product, angle.trim());
+    generated = await generateScripts(product, angle.trim(), scriptFormat);
   } catch (error) {
     console.error("Script generation failed:", error);
     return NextResponse.json(
@@ -37,10 +44,10 @@ export async function POST(request: NextRequest) {
   const inserted: Script[] = [];
   for (const item of generated) {
     const result = await pool.query<Script>(
-      `insert into scripts (product_id, angle, hook_text, full_script, status)
-       values ($1, $2, $3, $4, 'draft')
+      `insert into scripts (product_id, angle, format, hook_text, full_script, status)
+       values ($1, $2, $3, $4, $5, 'draft')
        returning *`,
-      [productId, angle.trim(), item.hook_text, item.full_script]
+      [productId, angle.trim(), scriptFormat, item.hook_text, item.full_script]
     );
     inserted.push(result.rows[0]);
   }
