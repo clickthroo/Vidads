@@ -7,9 +7,11 @@ import { SCRIPT_FORMATS, type ScriptFormat } from "@/lib/formats";
 export default function Dashboard({
   products,
   initialScripts,
+  suggestedAngles,
 }: {
   products: Product[];
   initialScripts: Script[];
+  suggestedAngles: string[];
 }) {
   const [productId, setProductId] = useState(products[0]?.id ?? "");
   const [angle, setAngle] = useState("");
@@ -155,6 +157,20 @@ export default function Dashboard({
             value={angle}
             onChange={(e) => setAngle(e.target.value)}
           />
+          {suggestedAngles.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-1">
+              {suggestedAngles.map((a) => (
+                <button
+                  key={a}
+                  type="button"
+                  className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full px-2.5 py-1"
+                  onClick={() => setAngle(a)}
+                >
+                  {a}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col gap-1">
