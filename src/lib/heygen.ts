@@ -6,7 +6,19 @@ const HEYGEN_API_BASE = "https://api.heygen.com";
 const DEFAULT_AVATAR_ID = "Angela-inTshirt-20220820";
 const DEFAULT_VOICE_ID = "1bd001e7e50f421d891986aad5158bc8";
 
-const AVATAR_ID = process.env.HEYGEN_AVATAR_ID || DEFAULT_AVATAR_ID;
+// One or more avatar "look" IDs, comma-separated. Multiple looks let a
+// script rotate between them scene-to-scene, so the rendered video changes
+// visual angle instead of being one unbroken continuous shot. Falls back
+// to the older single HEYGEN_AVATAR_ID var, then the stock placeholder.
+export const AVATAR_LOOK_IDS: string[] = (
+  process.env.HEYGEN_AVATAR_LOOK_IDS ||
+  process.env.HEYGEN_AVATAR_ID ||
+  DEFAULT_AVATAR_ID
+)
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
 const VOICE_ID = process.env.HEYGEN_VOICE_ID || DEFAULT_VOICE_ID;
 
 function apiKey(): string {
@@ -17,17 +29,30 @@ function apiKey(): string {
 
 /**
  * Strips the "Label (0-3s): " style prefixes our scripts are stored with,
- * so HeyGen's TTS reads only the actual line, not the section markers.
+ * so HeyGen's TTS reads only the actual line, not the section markers, then
+ * groups the remaining lines into `sceneCount` roughly-equal spoken chunks —
+ * one per HeyGen clip, so the rendered video can change avatar look/angle
+ * scene to scene instead of being one unbroken shot.
  */
-export function toSpokenText(fullScript: string): string {
-  return fullScript
+export function splitIntoScenes(fullScript: string, sceneCount: number): string[] {
+  const lines = fullScript
     .split("\n")
     .map((line) => line.replace(/^[A-Za-z][\w\s]*\(\d+-\d+s\)\s*:\s*/, "").trim())
-    .filter(Boolean)
-    .join(" ");
+    .filter(Boolean);
+
+  const count = Math.max(1, Math.min(sceneCount, lines.length));
+  const perScene = Math.ceil(lines.length / count);
+  const scenes: string[] = [];
+  for (let i = 0; i < lines.length; i += perScene) {
+    scenes.push(lines.slice(i, i + perScene).join(" "));
+  }
+  return scenes;
 }
 
-export async function createHeyGenVideo(spokenText: string): Promise<string> {
+export async function createHeyGenVideo(
+  spokenText: string,
+  avatarLookId: string
+): Promise<string> {
   const res = await fetch(`${HEYGEN_API_BASE}/v2/video/generate`, {
     method: "POST",
     headers: {
@@ -39,7 +64,7 @@ export async function createHeyGenVideo(spokenText: string): Promise<string> {
         {
           character: {
             type: "avatar",
-            avatar_id: AVATAR_ID,
+            avatar_id: avatarLookId,
             avatar_style: "normal",
           },
           voice: {

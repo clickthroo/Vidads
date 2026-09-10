@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/lib/db";
-import { startRenderVideo } from "@/lib/renderVideo";
+import { startMultiClipRender } from "@/lib/renderVideo";
 import type { Script } from "@/lib/types";
 
 export async function POST(
@@ -22,11 +22,22 @@ export async function POST(
     );
   }
 
+  // Clear out any clips/stitch job left over from a previous failed attempt.
+  await pool.query("delete from render_clips where script_id = $1", [script.id]);
+
   try {
-    const heygenVideoId = await startRenderVideo(script);
+    const jobs = await startMultiClipRender(script);
+    for (const job of jobs) {
+      await pool.query(
+        `insert into render_clips
+           (script_id, clip_index, spoken_text, avatar_look_id, heygen_video_id, status)
+         values ($1, $2, $3, $4, $5, 'rendering')`,
+        [script.id, job.clipIndex, job.spokenText, job.avatarLookId, job.heygenVideoId]
+      );
+    }
     const updated = await pool.query<Script>(
-      "update scripts set status = 'rendering', heygen_video_id = $2 where id = $1 returning *",
-      [script.id, heygenVideoId]
+      "update scripts set status = 'rendering', stitch_job_id = null where id = $1 returning *",
+      [script.id]
     );
     return NextResponse.json({ script: updated.rows[0] });
   } catch (error) {

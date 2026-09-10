@@ -250,7 +250,7 @@ export default function Dashboard({
               )}
               {script.status === "rendering" && (
                 <p className="text-sm text-gray-500">
-                  Rendering… this usually takes 1–3 minutes.
+                  Rendering… this can take several minutes (multiple scenes, then final assembly).
                 </p>
               )}
             </div>
